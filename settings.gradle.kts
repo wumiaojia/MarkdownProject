@@ -25,7 +25,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MarkDownProject"
+rootProject.name = "markdown"
 include(":app")
 include(":markdown")
- 
