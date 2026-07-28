@@ -15,7 +15,7 @@ dependencyResolutionManagement {
         mavenCentral()
         maven(url = "https://jitpack.io") {
             content {
-                includeGroup("com.github.wumiaojia.MarkdownProject")
+                includeGroup("com.github.wumiaojia")
             }
         }
     }
@@ -26,7 +26,7 @@ Add the `markdown` module dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.wumiaojia.MarkdownProject:markdown:0.1.0")
+    implementation("com.github.wumiaojia:MarkdownProject:0.1.0")
 }
 ```
 
