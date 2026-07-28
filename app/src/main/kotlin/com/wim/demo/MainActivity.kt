@@ -42,22 +42,22 @@ class MainActivity : ComponentActivity() {
 fun MarkdownDemoScreen() {
     val initialMarkdown = """
         # Markdown & HTML 原生实验室
-        
+
         这是一个 100% **Compose** 实现的富文本编辑器，支持 **Markdown** 与 **HTML** 混合解析。
-        
+
         ### 1. 响应式表格 (内容自适应 + 智能换行)
         默认开启 **ADAPTIVE** 布局，最大宽度限制为 **400dp**。下方表格演示了长文本自动换行与行高对齐：
-        
+
         | 姓名 | 职位 | 联系方式 | 详细备注 |
         | :--- | :--- | :--- | :--- |
         | 张三 | 高级 Android 开发工程师 | zhangsan@example.com | 负责移动端架构设计与组件化重构，具有丰富的性能优化经验。负责移动端架构设计与组件化重构，具有丰富的性能优化经验。负责移动端架构设计与组件化重构，具有丰富的性能优化经验。 |
         | 李四 | 产品经理 | lisi@example.com | 关注用户体验。 |
-        
+
         ---
-        
+
         ### 2. 均分布满示例 (STRETCH)
         在设置面板切换至“均分布满”，表格将强制填满屏幕宽度：
-        
+
         | 标题 A | 标题 B | 标题 C |
         | :--- | :--- | :--- |
         | 数据 1 | 数据 2 | 数据 3 |
@@ -73,12 +73,12 @@ fun MarkdownDemoScreen() {
     var isHtmlMode by remember { mutableStateOf(false) }
     var showTableActions by remember { mutableStateOf(true) }
     var enabledToolbarItems by remember { mutableStateOf(ToolbarItem.entries.toSet()) }
-    
+
     // 间距配置
     var paragraphSpacing by remember { mutableFloatStateOf(6f) }
     var listItemSpacing by remember { mutableFloatStateOf(2f) }
     var horizontalPadding by remember { mutableFloatStateOf(16f) }
-    
+
     // 视觉配置
     var h1Size by remember { mutableFloatStateOf(28f) }
     var tableCornerRadius by remember { mutableFloatStateOf(4f) }
@@ -103,7 +103,7 @@ fun MarkdownDemoScreen() {
         listItemSpacing = listItemSpacing.dp,
         horizontalPadding = horizontalPadding.dp
     )
-    
+
     val typography = MarkdownTypography(
         headingSizes = listOf(
             h1Size.sp,
@@ -114,49 +114,32 @@ fun MarkdownDemoScreen() {
             (h1Size * 0.54f).sp
         )
     )
-    
-    val tableStyle = when(tableTheme) {
-        "Blue" -> MarkdownTableStyle(
+
+    val baseTableStyle = MarkdownTableStyle(
+        cornerRadius = tableCornerRadius.dp,
+        cellHorizontalPadding = cellHorizontalPadding.dp,
+        cellVerticalPadding = cellVerticalPadding.dp,
+        defaultAlignment = tableAlignment,
+        minColumnWidth = if (minColumnWidth > 0) minColumnWidth.dp else null,
+        maxColumnWidth = if (maxColumnWidth > 0) maxColumnWidth.dp else null,
+        enableHorizontalScroll = enableHorizontalScroll,
+        layoutMode = tableLayoutMode,
+        showHorizontalScrollbar = showScrollbar,
+    )
+    val tableStyle = when (tableTheme) {
+        "Blue" -> baseTableStyle.copy(
             headerBackgroundColor = Color(0xFFE3F2FD),
             borderColor = Color(0xFF90CAF9),
             headerContentColor = Color(0xFF1976D2),
-            cornerRadius = tableCornerRadius.dp,
-            cellHorizontalPadding = cellHorizontalPadding.dp,
-            cellVerticalPadding = cellVerticalPadding.dp,
-            defaultAlignment = tableAlignment,
-            minColumnWidth = if (minColumnWidth > 0) minColumnWidth.dp else null,
-            maxColumnWidth = if (maxColumnWidth > 0) maxColumnWidth.dp else null,
-            enableHorizontalScroll = enableHorizontalScroll,
-            layoutMode = tableLayoutMode,
-            showHorizontalScrollbar = showScrollbar
         )
-        "Dark" -> MarkdownTableStyle(
+        "Dark" -> baseTableStyle.copy(
             backgroundColor = Color(0xFF2C2C2C),
             headerBackgroundColor = Color(0xFF3D3D3D),
             borderColor = Color(0xFF555555),
             contentColor = Color.White,
             headerContentColor = Color(0xFFBB86FC),
-            cornerRadius = tableCornerRadius.dp,
-            cellHorizontalPadding = cellHorizontalPadding.dp,
-            cellVerticalPadding = cellVerticalPadding.dp,
-            defaultAlignment = tableAlignment,
-            minColumnWidth = if (minColumnWidth > 0) minColumnWidth.dp else null,
-            maxColumnWidth = if (maxColumnWidth > 0) maxColumnWidth.dp else null,
-            enableHorizontalScroll = enableHorizontalScroll,
-            layoutMode = tableLayoutMode,
-            showHorizontalScrollbar = showScrollbar
         )
-        else -> MarkdownTableStyle(
-            cornerRadius = tableCornerRadius.dp,
-            cellHorizontalPadding = cellHorizontalPadding.dp,
-            cellVerticalPadding = cellVerticalPadding.dp,
-            defaultAlignment = tableAlignment,
-            minColumnWidth = if (minColumnWidth > 0) minColumnWidth.dp else null,
-            maxColumnWidth = if (maxColumnWidth > 0) maxColumnWidth.dp else null,
-            enableHorizontalScroll = enableHorizontalScroll,
-            layoutMode = tableLayoutMode,
-            showHorizontalScrollbar = showScrollbar
-        )
+        else -> baseTableStyle
     }
 
     Scaffold(
@@ -165,7 +148,7 @@ fun MarkdownDemoScreen() {
             TopAppBar(
                 title = { Text("Markdown Lab") },
                 actions = {
-                    IconButton(onClick = { 
+                    IconButton(onClick = {
                         val content = if (isHtmlMode) state.toHtml() else state.toMarkdown()
                         showExportDialog = content
                     }) {
@@ -252,7 +235,7 @@ fun MarkdownDemoScreen() {
                 onHtmlModeChange = {
                     val currentContent = if (isHtmlMode) state.toHtml() else state.toMarkdown()
                     isHtmlMode = it
-                    state = if (it) MarkdownEditorState.fromHtml(currentContent) 
+                    state = if (it) MarkdownEditorState.fromHtml(currentContent)
                             else MarkdownEditorState.fromMarkdown(currentContent)
                 },
                 paragraphSpacing = paragraphSpacing,
@@ -299,9 +282,9 @@ fun MarkdownDemoScreen() {
         AlertDialog(
             onDismissRequest = { showExportDialog = null },
             title = { Text(if (isHtmlMode) "HTML 导出" else "Markdown 导出") },
-            text = { 
+            text = {
                 Box(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
-                    Text(showExportDialog!!, style = MaterialTheme.typography.bodySmall) 
+                    Text(showExportDialog!!, style = MaterialTheme.typography.bodySmall)
                 }
             },
             confirmButton = {
@@ -386,9 +369,9 @@ fun SettingsPanel(
             headlineContent = { Text("键盘收起时显示工具栏") },
             trailingContent = { Switch(showToolbarWhenKeyboardHidden, onShowToolbarWhenKeyboardHiddenChange) }
         )
-        
+
         HorizontalDivider(Modifier.padding(vertical = 8.dp))
-        
+
         Text("标题选择器样式", style = MaterialTheme.typography.titleMedium)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -428,7 +411,7 @@ fun SettingsPanel(
         Text("间距与排版 (dp)", style = MaterialTheme.typography.titleMedium)
         Text("段落间距: ${paragraphSpacing.toInt()}", style = MaterialTheme.typography.bodySmall)
         Slider(paragraphSpacing, onParagraphSpacingChange, valueRange = 0f..20f)
-        
+
         Text("列表项间距: ${listItemSpacing.toInt()}", style = MaterialTheme.typography.bodySmall)
         Slider(listItemSpacing, onListItemSpacingChange, valueRange = 0f..10f)
 
@@ -485,7 +468,7 @@ fun SettingsPanel(
             FilterChip(selected = tableLayoutMode == TableLayoutMode.STRETCH, onClick = { onTableLayoutModeChange(TableLayoutMode.STRETCH) }, label = { Text("均分布满") })
             FilterChip(selected = tableLayoutMode == TableLayoutMode.ADAPTIVE, onClick = { onTableLayoutModeChange(TableLayoutMode.ADAPTIVE) }, label = { Text("内容自适应") })
         }
-        
+
         Spacer(Modifier.height(32.dp))
     }
 }

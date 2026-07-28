@@ -7,6 +7,7 @@ import com.wim.markdown.model.normalizeSpans
 
 private const val UNDERLINE_OPEN = "<u>"
 private const val UNDERLINE_CLOSE = "</u>"
+private val ESCAPABLE_CHARS = setOf('\\', '*', '_', '~', '`', '<')
 
 /** 行内样式与 markdown 标记的双向转换 */
 object InlineMarkdown {
@@ -38,7 +39,7 @@ object InlineMarkdown {
     fun serialize(rich: RichText): String {
         val n = rich.text.length
         val spans = normalizeSpans(rich.spans, n)
-        if (spans.isEmpty()) return rich.text
+        if (spans.isEmpty()) return escapeText(rich.text)
 
         val points = (spans.flatMap { listOf(it.start, it.end) } + listOf(0, n))
             .distinct().sorted()
@@ -65,7 +66,7 @@ object InlineMarkdown {
                 sb.append(openToken(s))
                 stack.addLast(s)
             }
-            sb.append(rich.text, a, b)
+            sb.append(escapeText(rich.text.substring(a, b)))
         }
         while (stack.isNotEmpty()) sb.append(closeToken(stack.removeLast()))
         return sb.toString()
@@ -85,7 +86,11 @@ object InlineMarkdown {
         val toks = mutableListOf<Tok>()
         var i = 0
         while (i < source.length) {
-            val hit = candidates.firstOrNull { source.startsWith(it.first, i) }
+            val hit = if (isEscaped(source, i)) {
+                null
+            } else {
+                candidates.firstOrNull { source.startsWith(it.first, i) }
+            }
             if (hit != null) {
                 toks.add(Tok(i, hit.first.length, hit.second.first, hit.second.second))
                 i += hit.first.length
@@ -101,7 +106,7 @@ object InlineMarkdown {
         for (t in toks) {
             if (codeOpen != null) {
                 if (t.style == InlineStyle.Code) {
-                    paired.add(codeOpen!! to t)
+                    paired.add(codeOpen to t)
                     codeOpen = null
                 }
                 continue
@@ -132,6 +137,13 @@ object InlineMarkdown {
                 plainPosOf[i] = sb.length
                 i += markerToks[m].len
                 m++
+            } else if (
+                source[i] == '\\' &&
+                i + 1 < source.length &&
+                source[i + 1] in ESCAPABLE_CHARS
+            ) {
+                sb.append(source[i + 1])
+                i += 2
             } else {
                 sb.append(source[i])
                 i++
@@ -148,6 +160,23 @@ object InlineMarkdown {
             markerRanges = markerRanges,
             sourceSpans = sourceSpans,
         )
+    }
+
+    private fun escapeText(text: String): String = buildString(text.length) {
+        for (ch in text) {
+            if (ch in ESCAPABLE_CHARS) append('\\')
+            append(ch)
+        }
+    }
+
+    private fun isEscaped(source: String, pos: Int): Boolean {
+        var slashCount = 0
+        var i = pos - 1
+        while (i >= 0 && source[i] == '\\') {
+            slashCount++
+            i--
+        }
+        return slashCount % 2 == 1
     }
 
     private data class Tok(val pos: Int, val len: Int, val style: InlineStyle, val isClose: Boolean)

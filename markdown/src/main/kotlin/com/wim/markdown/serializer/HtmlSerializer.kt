@@ -17,8 +17,10 @@ object HtmlSerializer {
                 val ordered = block.ordered
                 val tag = if (ordered) "ol" else "ul"
                 sb.append("<$tag>\n")
-                while (i < blocks.size && blocks[i] is Block.ListItem && (blocks[i] as Block.ListItem).ordered == ordered) {
-                    sb.append("  <li>").append(serializeInline((blocks[i] as Block.ListItem).content)).append("</li>\n")
+                while (i < blocks.size) {
+                    val item = blocks[i] as? Block.ListItem ?: break
+                    if (item.ordered != ordered) break
+                    sb.append("  <li>").append(serializeInline(item.content)).append("</li>\n")
                     i++
                 }
                 sb.append("</$tag>\n")
@@ -68,44 +70,47 @@ object HtmlSerializer {
             val a = points[i]
             val b = points[i + 1]
             if (a == b) continue
-            val active = spans.filter { it.start <= a && it.end >= b }.map { it.style }.toSet()
-            
-            // Close tags that are not in active
-            while (stack.isNotEmpty() && stack.last() !in active) {
-                sb.append(closeTag(stack.removeAt(stack.size - 1)))
+            val targetStack = spans
+                .filter { it.start <= a && it.end >= b }
+                .map { it.style }
+                .distinct()
+                .sortedBy { it.ordinal }
+
+            var commonPrefixLength = 0
+            while (
+                commonPrefixLength < stack.size &&
+                commonPrefixLength < targetStack.size &&
+                stack[commonPrefixLength] == targetStack[commonPrefixLength]
+            ) {
+                commonPrefixLength++
             }
-            
-            // Open tags that are in active but not in stack
-            val toOpen = active.filter { it !in stack }.sortedBy { it.ordinal }
-            toOpen.forEach {
-                sb.append(openTag(it))
-                stack.add(it)
+
+            while (stack.size > commonPrefixLength) {
+                sb.append("</").append(tagName(stack.removeAt(stack.size - 1))).append(">")
             }
-            
+
+            for (styleIndex in commonPrefixLength until targetStack.size) {
+                val style = targetStack[styleIndex]
+                sb.append("<").append(tagName(style)).append(">")
+                stack.add(style)
+            }
+
             sb.append(escapeHtml(rich.text.substring(a, b)))
         }
         
         while (stack.isNotEmpty()) {
-            sb.append(closeTag(stack.removeAt(stack.size - 1)))
+            sb.append("</").append(tagName(stack.removeAt(stack.size - 1))).append(">")
         }
         
         return sb.toString()
     }
 
-    private fun openTag(style: InlineStyle): String = when (style) {
-        InlineStyle.Bold -> "<strong>"
-        InlineStyle.Italic -> "<em>"
-        InlineStyle.Strikethrough -> "<s>"
-        InlineStyle.Underline -> "<u>"
-        InlineStyle.Code -> "<code>"
-    }
-
-    private fun closeTag(style: InlineStyle): String = when (style) {
-        InlineStyle.Bold -> "</strong>"
-        InlineStyle.Italic -> "</em>"
-        InlineStyle.Strikethrough -> "</s>"
-        InlineStyle.Underline -> "</u>"
-        InlineStyle.Code -> "</code>"
+    private fun tagName(style: InlineStyle): String = when (style) {
+        InlineStyle.Bold -> "strong"
+        InlineStyle.Italic -> "em"
+        InlineStyle.Strikethrough -> "s"
+        InlineStyle.Underline -> "u"
+        InlineStyle.Code -> "code"
     }
 
     private fun escapeHtml(s: String): String = s

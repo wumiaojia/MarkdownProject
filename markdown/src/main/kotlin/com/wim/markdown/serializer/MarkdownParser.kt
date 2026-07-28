@@ -4,8 +4,7 @@ import com.wim.markdown.model.Block
 import com.wim.markdown.model.RichText
 
 private val HEADING = Regex("^(#{1,6}) (.*)$")
-private val UNORDERED = Regex("^( *)- (.*)$")
-private val ORDERED = Regex("^( *)\\d+\\. (.*)$")
+private val LIST_ITEM = Regex("^( *)(-|\\d+\\.) (.*)$")
 private val QUOTE = Regex("^> ?(.*)$")
 private val DIVIDER = Regex("^(-{3,}|\\*{3,}|_{3,})\\s*$")
 private val SEPARATOR_CELL = Regex("^:?-{3,}:?$")
@@ -55,18 +54,12 @@ object MarkdownParser {
             return Block.Heading(it.groupValues[1].length, inline(it.groupValues[2]))
         }
         DIVIDER.matchEntire(line.trim())?.let { return Block.Divider }
-        UNORDERED.matchEntire(line)?.let {
+        LIST_ITEM.matchEntire(line)?.let {
+            val (indent, marker, content) = it.destructured
             return Block.ListItem(
-                ordered = false,
-                indent = it.groupValues[1].length / 2,
-                content = inline(it.groupValues[2]),
-            )
-        }
-        ORDERED.matchEntire(line)?.let {
-            return Block.ListItem(
-                ordered = true,
-                indent = it.groupValues[1].length / 2,
-                content = inline(it.groupValues[2]),
+                ordered = marker != "-",
+                indent = indent.length / 2,
+                content = inline(content),
             )
         }
         QUOTE.matchEntire(line)?.let { return Block.Quote(inline(it.groupValues[1])) }

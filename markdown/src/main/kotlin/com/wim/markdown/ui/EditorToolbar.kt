@@ -162,7 +162,6 @@ private fun currentHeadingOption(state: MarkdownEditorState): Int? =
 private fun headingBlockType(option: Int): BlockType =
     if (option == 0) BlockType.Paragraph else BlockType.Heading(option)
 
-@Composable
 private fun headingLabel(option: Int): String =
     if (option == 0) "正文"
     else "H$option"

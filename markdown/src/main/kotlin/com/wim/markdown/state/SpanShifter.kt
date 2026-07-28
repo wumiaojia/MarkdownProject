@@ -42,7 +42,8 @@ object SpanShifter {
             val e = span.end
             when {
                 e < prefix -> span
-                s > oldEnd -> span.copy(start = s + delta, end = e + delta)
+                // 从区间起点插入时，新文本属于区间外；区间整体后移而不是向前扩展。
+                s >= oldEnd -> span.copy(start = s + delta, end = e + delta)
                 s <= prefix && e >= oldEnd -> span.copy(end = e + delta)
                 s <= prefix -> span.copy(end = prefix)
                 e >= oldEnd -> span.copy(start = prefix + insLen, end = e + delta)

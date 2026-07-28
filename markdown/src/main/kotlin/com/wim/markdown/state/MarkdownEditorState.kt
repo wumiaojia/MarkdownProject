@@ -136,21 +136,19 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
     // ---- RICH 模式输入 ----
 
     fun onRichValueChange(value: TextFieldValue) {
-        val old = blocks.getOrNull(focusedIndex)?.contentOrNull() ?: return
-        val nl = value.text.indexOf('\n')
-        if (nl >= 0) {
-            val merged = RichText(
+        val current = blocks.getOrNull(focusedIndex)?.contentOrNull() ?: return
+        val newlineIndex = value.text.indexOf('\n')
+        if (newlineIndex >= 0 || value.text != current.text) {
+            val updated = RichText(
                 value.text,
-                SpanShifter.shift(old.text, old.spans, value.text, pendingStyles),
+                SpanShifter.shift(current.text, current.spans, value.text, pendingStyles),
             )
             pendingStyles = null
-            splitFocusedBlock(merged, nl)
-            return
-        }
-        if (value.text != old.text) {
-            val spans = SpanShifter.shift(old.text, old.spans, value.text, pendingStyles)
-            blocks[focusedIndex] = blocks[focusedIndex].withContent(RichText(value.text, spans))
-            pendingStyles = null
+            if (newlineIndex >= 0) {
+                splitFocusedBlock(updated, newlineIndex)
+                return
+            }
+            blocks[focusedIndex] = blocks[focusedIndex].withContent(updated)
         } else if (value.selection != selection) {
             // 仅移动光标：重置样式覆盖
             pendingStyles = null

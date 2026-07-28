@@ -43,8 +43,6 @@ import com.wim.markdown.model.contentOrNull
 import com.wim.markdown.serializer.orderedNumber
 import com.wim.markdown.state.MarkdownEditorState
 
-// Removed HEADING_SIZES
-
 @Composable
 internal fun BlockEditor(
     index: Int,
@@ -52,9 +50,9 @@ internal fun BlockEditor(
     state: MarkdownEditorState,
     mode: MarkdownEditorMode,
     modifier: Modifier = Modifier,
-    previousBlock: Block? = null,
-    readOnly: Boolean = false,
-    showTableActions: Boolean = true,
+    previousBlock: Block?,
+    readOnly: Boolean,
+    showTableActions: Boolean,
 ) {
     val spacing = LocalMarkdownEditorSpacing.current
     val topPadding = spacing.calculateTopSpacing(block, previousBlock)
@@ -64,7 +62,14 @@ internal fun BlockEditor(
         return
     }
     if (block is Block.Table) {
-        TableBlockEditor(index, block, state, modifier.padding(top = topPadding), showTableActions)
+        TableBlockEditor(
+            index = index,
+            table = block,
+            state = state,
+            modifier = modifier.padding(top = topPadding),
+            readOnly = readOnly,
+            showTableActions = showTableActions,
+        )
         return
     }
 
@@ -179,7 +184,7 @@ private fun UnfocusedText(
     block: Block,
     state: MarkdownEditorState,
     textStyle: TextStyle,
-    readOnly: Boolean = false,
+    readOnly: Boolean,
 ) {
     val content = block.contentOrNull() ?: return
     val codeBg = MaterialTheme.colorScheme.surfaceVariant

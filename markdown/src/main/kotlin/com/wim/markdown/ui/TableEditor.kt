@@ -7,7 +7,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,8 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -29,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -38,8 +34,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.Placeable
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
@@ -55,8 +49,9 @@ internal fun TableBlockEditor(
     index: Int,
     table: Block.Table,
     state: MarkdownEditorState,
-    modifier: Modifier = Modifier,
-    showTableActions: Boolean = true,
+    modifier: Modifier,
+    readOnly: Boolean,
+    showTableActions: Boolean,
 ) {
     val style = LocalMarkdownTableStyle.current
     val borderColor = style.borderColor
@@ -80,6 +75,7 @@ internal fun TableBlockEditor(
                     state = state,
                     blockIndex = index,
                     containerWidth = containerWidth,
+                    readOnly = readOnly,
                     modifier = Modifier
                         .clip(RoundedCornerShape(style.cornerRadius))
                         .background(style.backgroundColor)
@@ -96,7 +92,7 @@ internal fun TableBlockEditor(
             TableScrollbar(scrollState)
         }
 
-        if (showTableActions && (state.focusedIndex == index)) {
+        if (!readOnly && showTableActions && state.focusedIndex == index) {
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 TextButton(onClick = { state.addTableRow() }) { Text("加行") }
                 TextButton(onClick = { state.addTableColumn() }) { Text("加列") }
@@ -124,7 +120,8 @@ private fun TableGrid(
     state: MarkdownEditorState,
     blockIndex: Int,
     containerWidth: Dp,
-    modifier: Modifier = Modifier
+    readOnly: Boolean,
+    modifier: Modifier,
 ) {
     val rowCount = table.rows.size
     val columnCount = if (rowCount > 0) table.rows[0].size else 0
@@ -145,23 +142,35 @@ private fun TableGrid(
                         header = isHeader,
                         isLastRow = r == table.rows.lastIndex,
                         isLastColumn = c == row.lastIndex,
+                        readOnly = readOnly,
                     )
                 }
             }
         }
     ) { measurables, constraints ->
-        val minColWidthPx = style.minColumnWidth?.roundToPx() ?: 0
-        val maxColWidthPx = style.maxColumnWidth?.roundToPx() ?: Int.MAX_VALUE
+        val requestedMinColWidthPx = style.minColumnWidth
+            ?.takeIf { it.value.isFinite() }
+            ?.roundToPx()
+            ?: 0
+        val requestedMaxColWidthPx = style.maxColumnWidth
+            ?.takeIf { it.value.isFinite() }
+            ?.roundToPx()
+            ?: Int.MAX_VALUE
+        val widthBounds = normalizeColumnWidthBounds(
+            requestedMinColWidthPx,
+            requestedMaxColWidthPx,
+        )
+        val minColWidthPx = widthBounds.first
+        val maxColWidthPx = widthBounds.last
         val containerWidthPx = containerWidth.roundToPx()
 
         // 1. 测量每列的理想宽度
-        val colMaxWidths = IntArray(columnCount) { 0 }
-        measurables.chunked(columnCount).forEach { rowMeasurables ->
-            rowMeasurables.forEachIndexed { c, cellMeasurable ->
-                // 使用 maxColWidthPx 进行内在宽度测量，触发换行
-                val intrinsicWidth = cellMeasurable.maxIntrinsicWidth(constraints.maxHeight)
-                colMaxWidths[c] = maxOf(colMaxWidths[c], intrinsicWidth)
-            }
+        val colMaxWidths = IntArray(columnCount)
+        measurables.forEachIndexed { index, cellMeasurable ->
+            val column = index % columnCount
+            // 使用 maxColWidthPx 进行内在宽度测量，触发换行
+            val intrinsicWidth = cellMeasurable.maxIntrinsicWidth(constraints.maxHeight)
+            colMaxWidths[column] = maxOf(colMaxWidths[column], intrinsicWidth)
         }
 
         // 2. 计算最终列宽
@@ -223,6 +232,7 @@ private fun TableCell(
     header: Boolean,
     isLastRow: Boolean,
     isLastColumn: Boolean,
+    readOnly: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val style = LocalMarkdownTableStyle.current
@@ -245,6 +255,7 @@ private fun TableCell(
     BasicTextField(
         value = value,
         onValueChange = { v ->
+            if (readOnly) return@BasicTextField
             val text = v.text.replace("\n", "")
             state.onTableCellChange(blockIndex, row, col, text)
             val updated = (state.blocks.getOrNull(blockIndex) as? Block.Table)
@@ -258,11 +269,16 @@ private fun TableCell(
                 selection,
             )
         },
+        readOnly = readOnly,
         textStyle = if (header) base.copy(fontWeight = FontWeight.Bold) else base,
         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
         modifier = modifier
             .fillMaxHeight()
-            .onFocusChanged { if (it.isFocused) state.focusTable(blockIndex) }
+            .onFocusChanged {
+                if (!readOnly && it.isFocused) {
+                    state.focusTable(blockIndex)
+                }
+            }
             .background(cellBg)
             .drawBehind {
                 val strokeWidth = style.borderWidth.toPx()
@@ -288,6 +304,15 @@ private fun TableCell(
             }
             .padding(horizontal = style.cellHorizontalPadding, vertical = style.cellVerticalPadding),
     )
+}
+
+internal fun normalizeColumnWidthBounds(
+    minWidthPx: Int,
+    maxWidthPx: Int,
+): IntRange {
+    val nonNegativeMin = minWidthPx.coerceAtLeast(0)
+    val nonNegativeMax = maxWidthPx.coerceAtLeast(0)
+    return minOf(nonNegativeMin, nonNegativeMax)..maxOf(nonNegativeMin, nonNegativeMax)
 }
 
 @Composable
