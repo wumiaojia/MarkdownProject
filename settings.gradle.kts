@@ -1,5 +1,4 @@
 @file:Suppress("UnstableApiUsage", "DEPRECATION")
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {

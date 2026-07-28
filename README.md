@@ -26,7 +26,7 @@ Add the `markdown` module dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.wumiaojia:markdown:0.1.1")
+    implementation("com.github.wumiaojia:markdown:0.1.2")
 }
 ```
 

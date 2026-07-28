@@ -24,7 +24,7 @@ android {
 }
 
 dependencies {
-    implementation(projects.markdown)
+    implementation(project(":markdown"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.compose)
