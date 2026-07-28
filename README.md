@@ -1,6 +1,6 @@
-# MarkdownProject
+# Markdown
 
-[![](https://jitpack.io/v/wumiaojia/MarkdownProject.svg)](https://jitpack.io/#wumiaojia/MarkdownProject)
+[![](https://jitpack.io/v/wumiaojia/markdown.svg)](https://jitpack.io/#wumiaojia/markdown)
 
 An Android Markdown editor library built with Kotlin and Jetpack Compose.
 
@@ -26,7 +26,7 @@ Add the `markdown` module dependency:
 
 ```kotlin
 dependencies {
-    implementation("com.github.wumiaojia:MarkdownProject:0.1.0")
+    implementation("com.github.wumiaojia:markdown:0.1.0")
 }
 ```
 

@@ -33,14 +33,14 @@ afterEvaluate {
             create<MavenPublication>("release") {
                 from(components["release"])
 
-                groupId = "com.github.wumiaojia.MarkdownProject"
+                groupId = "com.github.wumiaojia"
                 artifactId = "markdown"
                 version = System.getenv("VERSION") ?: "0.1.0"
 
                 pom {
                     name.set("Markdown")
                     description.set("A Jetpack Compose Markdown editor library for Android.")
-                    url.set("https://github.com/wumiaojia/MarkdownProject")
+                    url.set("https://github.com/wumiaojia/markdown")
 
                     developers {
                         developer {
@@ -51,9 +51,9 @@ afterEvaluate {
                     }
 
                     scm {
-                        connection.set("scm:git:git://github.com/wumiaojia/MarkdownProject.git")
-                        developerConnection.set("scm:git:ssh://github.com/wumiaojia/MarkdownProject.git")
-                        url.set("https://github.com/wumiaojia/MarkdownProject")
+                        connection.set("scm:git:git://github.com/wumiaojia/markdown.git")
+                        developerConnection.set("scm:git:ssh://github.com/wumiaojia/markdown.git")
+                        url.set("https://github.com/wumiaojia/markdown")
                     }
                 }
             }
