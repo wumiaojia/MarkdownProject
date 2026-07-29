@@ -43,13 +43,17 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.wumiaojia:markdown:0.1.3")
+    implementation("com.github.wumiaojia:markdown:0.1.4")
 }
 ```
 
 ## 环境要求
 
-- Android `minSdk 29`
+- Android `minSdk 26`
+- Android `compileSdk 35` 或更高版本
+- Android Gradle Plugin 8.6.0 或更高版本
+- Kotlin 2.0 或更高版本，Compose Compiler 插件版本与 Kotlin 保持一致
+- Gradle 8.7 或更高版本
 - Java 17
 - Jetpack Compose
 

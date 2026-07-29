@@ -1,16 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     `maven-publish`
 }
 
 android {
     namespace = "com.wim.markdown"
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
 
     publishing {
         singleVariant("release") {
@@ -20,8 +16,8 @@ android {
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.bundles.compose)
+    api(platform(libs.androidx.compose.bom))
+    api(libs.bundles.compose)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
@@ -35,7 +31,7 @@ afterEvaluate {
 
                 groupId = "com.github.wumiaojia"
                 artifactId = "markdown"
-                version = System.getenv("VERSION") ?: "0.1.3"
+                version = System.getenv("VERSION") ?: "0.1.4"
 
                 pom {
                     name.set("Markdown")

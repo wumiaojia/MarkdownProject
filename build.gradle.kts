@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
+    alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
 }
 
@@ -18,6 +19,10 @@ subprojects {
             buildFeatures {
                 compose = true
             }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
         }
     }
 
@@ -26,9 +31,16 @@ subprojects {
             compileSdk = libs.versions.sdkCompile.get().toInt()
             defaultConfig {
                 minSdk = libs.versions.sdkMin.get().toInt()
+                aarMetadata {
+                    minCompileSdk = libs.versions.sdkCompile.get().toInt()
+                }
             }
             buildFeatures {
                 compose = true
+            }
+            compileOptions {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
             }
         }
     }
