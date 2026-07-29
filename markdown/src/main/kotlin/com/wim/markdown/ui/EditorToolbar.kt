@@ -9,6 +9,7 @@ import androidx.compose.material.icons.automirrored.filled.FormatIndentDecrease
 import androidx.compose.material.icons.automirrored.filled.FormatIndentIncrease
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
 import androidx.compose.material.icons.filled.FormatListNumbered
@@ -53,6 +54,8 @@ internal fun EditorToolbar(
 ) {
     val active = state.activeStyles()
     val resolvedActive = activeColor.takeOrElse { MaterialTheme.colorScheme.primary }
+    val focusedBlock = state.blocks.getOrNull(state.focusedIndex)
+    val focusedListItem = focusedBlock as? Block.ListItem
     Row(modifier.horizontalScroll(rememberScrollState())) {
         items.forEach { item ->
             when (item) {
@@ -101,16 +104,23 @@ internal fun EditorToolbar(
                 ToolbarItem.BulletList -> StyleButton(
                     Icons.AutoMirrored.Filled.FormatListBulleted,
                     "无序列表",
-                    (state.blocks.getOrNull(state.focusedIndex) as? Block.ListItem)?.ordered == false,
+                    focusedListItem?.let { !it.ordered && it.checked == null } == true,
                     resolvedActive,
                 ) { state.setBlockType(BlockType.ListItem(ordered = false)) }
 
                 ToolbarItem.NumberedList -> StyleButton(
                     Icons.Default.FormatListNumbered,
                     "有序列表",
-                    (state.blocks.getOrNull(state.focusedIndex) as? Block.ListItem)?.ordered == true,
+                    focusedListItem?.let { it.ordered && it.checked == null } == true,
                     resolvedActive,
                 ) { state.setBlockType(BlockType.ListItem(ordered = true)) }
+
+                ToolbarItem.TaskList -> StyleButton(
+                    Icons.Default.CheckBox,
+                    "任务列表",
+                    focusedListItem?.checked != null,
+                    resolvedActive,
+                ) { state.setBlockType(BlockType.TaskListItem) }
 
                 ToolbarItem.IndentDecrease -> StyleButton(
                     Icons.AutoMirrored.Filled.FormatIndentDecrease,
@@ -129,7 +139,7 @@ internal fun EditorToolbar(
                 ToolbarItem.Quote -> StyleButton(
                     Icons.Default.FormatQuote,
                     "引用",
-                    state.blocks.getOrNull(state.focusedIndex) is Block.Quote,
+                    focusedBlock is Block.Quote,
                     resolvedActive,
                 ) { state.setBlockType(BlockType.Quote) }
 
@@ -143,7 +153,7 @@ internal fun EditorToolbar(
                 ToolbarItem.Table -> StyleButton(
                     Icons.Default.TableChart,
                     "表格",
-                    state.blocks.getOrNull(state.focusedIndex) is Block.Table,
+                    focusedBlock is Block.Table,
                     resolvedActive,
                 ) { state.insertTable() }
             }

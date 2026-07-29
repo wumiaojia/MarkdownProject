@@ -20,7 +20,12 @@ object HtmlSerializer {
                 while (i < blocks.size) {
                     val item = blocks[i] as? Block.ListItem ?: break
                     if (item.ordered != ordered) break
-                    sb.append("  <li>").append(serializeInline(item.content)).append("</li>\n")
+                    sb.append("  <li>")
+                    item.checked?.let { checked ->
+                        val checkedAttribute = if (checked) " checked" else ""
+                        sb.append("<input type=\"checkbox\" disabled$checkedAttribute /> ")
+                    }
+                    sb.append(serializeInline(item.content)).append("</li>\n")
                     i++
                 }
                 sb.append("</$tag>\n")

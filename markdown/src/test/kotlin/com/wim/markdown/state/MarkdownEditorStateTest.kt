@@ -65,4 +65,141 @@ class MarkdownEditorStateTest {
         assertEquals(TextRange(2), state.selection)
         assertNull(state.pendingStyles)
     }
+
+    @Test
+    fun setTaskCheckedOnlyUpdatesTaskItems() {
+        val regular = Block.ListItem(ordered = false, content = RichText("regular"))
+        val state = MarkdownEditorState(
+            listOf(
+                Block.ListItem(
+                    ordered = false,
+                    content = RichText("todo"),
+                    checked = false,
+                ),
+                regular,
+            ),
+        )
+
+        state.setTaskChecked(0, true)
+        state.setTaskChecked(1, true)
+
+        assertEquals(
+            Block.ListItem(
+                ordered = false,
+                content = RichText("todo"),
+                checked = true,
+            ),
+            state.blocks[0],
+        )
+        assertEquals(regular, state.blocks[1])
+    }
+
+    @Test
+    fun newlineAfterTaskCreatesUncheckedContinuation() {
+        val state = MarkdownEditorState(
+            listOf(
+                Block.ListItem(
+                    ordered = false,
+                    content = RichText("done"),
+                    checked = true,
+                ),
+            ),
+        )
+        state.focusBlock(0, cursor = 4)
+
+        state.onRichValueChange(TextFieldValue("done\nnext", TextRange(9)))
+
+        assertEquals(
+            listOf(
+                Block.ListItem(
+                    ordered = false,
+                    content = RichText("done"),
+                    checked = true,
+                ),
+                Block.ListItem(
+                    ordered = false,
+                    content = RichText("next"),
+                    checked = false,
+                ),
+            ),
+            state.blocks.toList(),
+        )
+    }
+
+    @Test
+    fun inlineTypingConvertsRegularListToTask() {
+        val state = MarkdownEditorState()
+        state.setMode(com.wim.markdown.MarkdownEditorMode.INLINE_MARKDOWN)
+        state.focusBlock(0)
+
+        state.onInlineValueChange(TextFieldValue("- ", TextRange(2)))
+        state.onInlineValueChange(TextFieldValue("[ ]", TextRange(3)))
+        assertNull((state.blocks.single() as Block.ListItem).checked)
+
+        state.onInlineValueChange(TextFieldValue("[ ] todo", TextRange(8)))
+
+        assertEquals(
+            Block.ListItem(
+                ordered = false,
+                content = RichText("todo"),
+                checked = false,
+            ),
+            state.blocks.single(),
+        )
+        assertEquals("todo", state.inlineSource)
+        assertEquals(TextRange(4), state.selection)
+    }
+
+    @Test
+    fun committingMarkerOnlyTaskPreservesTaskState() {
+        val state = MarkdownEditorState()
+        state.setMode(com.wim.markdown.MarkdownEditorMode.INLINE_MARKDOWN)
+        state.focusBlock(0)
+        state.onInlineValueChange(TextFieldValue("- ", TextRange(2)))
+        state.onInlineValueChange(TextFieldValue("[ ]", TextRange(3)))
+
+        state.clearFocus()
+
+        assertEquals(
+            Block.ListItem(
+                ordered = false,
+                content = RichText(),
+                checked = false,
+            ),
+            state.blocks.single(),
+        )
+    }
+
+    @Test
+    fun exportingMarkerOnlyTaskKeepsInlineEditorConsistent() {
+        val state = MarkdownEditorState()
+        state.setMode(com.wim.markdown.MarkdownEditorMode.INLINE_MARKDOWN)
+        state.focusBlock(0)
+        state.onInlineValueChange(TextFieldValue("- ", TextRange(2)))
+        state.onInlineValueChange(TextFieldValue("[x]", TextRange(3)))
+
+        val markdown = state.toMarkdown()
+
+        assertEquals("- [x] ", markdown)
+        assertEquals("", state.inlineSource)
+        assertEquals(TextRange.Zero, state.selection)
+    }
+
+    @Test
+    fun selectingTaskListAgainKeepsCompletedState() {
+        val state = MarkdownEditorState(
+            listOf(
+                Block.ListItem(
+                    ordered = false,
+                    content = RichText("done"),
+                    checked = true,
+                ),
+            ),
+        )
+        state.focusBlock(0)
+
+        state.setBlockType(BlockType.TaskListItem)
+
+        assertEquals(true, (state.blocks.single() as Block.ListItem).checked)
+    }
 }

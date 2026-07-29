@@ -9,6 +9,16 @@ import com.wim.markdown.model.normalizeSpans
 /** HTML 文本 -> 块模型 */
 object HtmlParser {
 
+    private val inputTag = Regex("^\\s*<input\\b[^>]*>\\s*", RegexOption.IGNORE_CASE)
+    private val checkboxType = Regex(
+        "\\btype\\s*=\\s*(?:\"checkbox\"|'checkbox'|checkbox)(?=\\s|/?>)",
+        RegexOption.IGNORE_CASE,
+    )
+    private val checkedAttribute = Regex(
+        "\\bchecked(?:\\s*=\\s*(?:\"checked\"|'checked'|checked))?(?=\\s|/?>)",
+        RegexOption.IGNORE_CASE,
+    )
+
     fun parse(html: String): List<Block> {
         if (html.isBlank()) return listOf(Block.Paragraph())
 
@@ -42,7 +52,21 @@ object HtmlParser {
                         setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
                     )
                     liRegex.findAll(content).forEach { liMatch ->
-                        blocks.add(Block.ListItem(ordered = ordered, indent = 0, content = parseInline(liMatch.groupValues[1])))
+                        val itemHtml = liMatch.groupValues[1]
+                        val input = inputTag.find(itemHtml)
+                            ?.takeIf { checkboxType.containsMatchIn(it.value) }
+                        blocks.add(
+                            Block.ListItem(
+                                ordered = ordered,
+                                indent = 0,
+                                content = parseInline(
+                                    if (input == null) itemHtml else itemHtml.removeRange(input.range),
+                                ),
+                                checked = input?.let {
+                                    checkedAttribute.containsMatchIn(it.value)
+                                },
+                            ),
+                        )
                     }
                 }
                 tag == "hr" -> blocks.add(Block.Divider)

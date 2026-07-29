@@ -14,6 +14,7 @@
 - 粗体、斜体、删除线、下划线和行内代码
 - H1～H6 标题、段落、引用、分割线
 - 有序列表、无序列表和多级缩进
+- `- [ ]` / `- [x]` 任务列表，可直接勾选待办状态
 - 可编辑表格，支持增删行列、行表头和列表头
 - 工具栏按钮、顺序和标题选项可配置
 - 编辑器间距、排版字号和表格视觉样式可配置
@@ -42,7 +43,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.github.wumiaojia:markdown:0.1.2")
+    implementation("com.github.wumiaojia:markdown:0.1.3")
 }
 ```
 
@@ -175,6 +176,7 @@ MarkdownEditor(
         ToolbarItem.Heading,
         ToolbarItem.BulletList,
         ToolbarItem.NumberedList,
+        ToolbarItem.TaskList,
         ToolbarItem.Quote,
         ToolbarItem.Table,
     ),
@@ -201,6 +203,7 @@ MarkdownEditor(
 | `Heading` | 正文与标题切换 |
 | `BulletList` | 无序列表 |
 | `NumberedList` | 有序列表 |
+| `TaskList` | 任务列表 |
 | `IndentDecrease` | 减少列表缩进 |
 | `IndentIncrease` | 增加列表缩进 |
 | `Quote` | 引用 |
@@ -327,6 +330,7 @@ MarkdownEditor(
 | `toggleInlineStyle(style)` | 切换粗体、斜体等行内样式 |
 | `setBlockType(type)` | 切换段落、标题、列表或引用 |
 | `changeIndent(delta)` | 调整当前列表项缩进，范围为 0～3 |
+| `setTaskChecked(index, checked)` | 更新任务列表项的完成状态 |
 | `insertDivider()` | 在当前块后插入分割线 |
 | `insertTable(rows, columns)` | 在当前块后插入表格，默认 2 × 2 |
 | `addTableRow()` / `removeTableRow()` | 增删表格末行 |
@@ -361,6 +365,7 @@ val html = editorState.toHtml()
 | 行内代码 | `` `code` `` |
 | 无序列表 | `- item` |
 | 有序列表 | `1. item` |
+| 任务列表 | `- [ ] todo`、`- [x] done` |
 | 列表缩进 | 每级两个空格 |
 | 引用 | `> quote` |
 | 分割线 | `---`、`***` 或 `___` |
@@ -374,6 +379,7 @@ val html = editorState.toHtml()
 - `<h1>`～`<h6>`
 - `<blockquote>`
 - `<ul>`、`<ol>` 和 `<li>`
+- 列表项开头的 `<input type="checkbox">`
 - `<hr>`
 - `<table>`、`<tr>`、`<th>` 和 `<td>`
 
@@ -389,7 +395,7 @@ HTML 支持面向编辑器自身的导入与导出格式，不是完整的浏览
 
 ## 当前限制
 
-- 暂不支持链接、图片、任务列表和围栏代码块。
+- 暂不支持链接、图片和围栏代码块。
 - 不以完整 CommonMark 或 GitHub Flavored Markdown 兼容为目标。
 - HTML 仅支持上面列出的子集。
 - 有序列表导出时会根据连续列表项重新计算序号。

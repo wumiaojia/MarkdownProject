@@ -35,7 +35,7 @@ afterEvaluate {
 
                 groupId = "com.github.wumiaojia"
                 artifactId = "markdown"
-                version = System.getenv("VERSION") ?: "0.1.2"
+                version = System.getenv("VERSION") ?: "0.1.3"
 
                 pom {
                     name.set("Markdown")

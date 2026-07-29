@@ -5,9 +5,20 @@ import com.wim.markdown.model.RichText
 
 private val HEADING = Regex("^(#{1,6}) (.*)$")
 private val LIST_ITEM = Regex("^( *)(-|\\d+\\.) (.*)$")
+private val TASK_ITEM = Regex("^\\[([ xX])](?:\\s+(.*))?$")
 private val QUOTE = Regex("^> ?(.*)$")
 private val DIVIDER = Regex("^(-{3,}|\\*{3,}|_{3,})\\s*$")
 private val SEPARATOR_CELL = Regex("^:?-{3,}:?$")
+
+internal data class ParsedTaskItem(val checked: Boolean, val content: String)
+
+internal fun parseTaskItem(content: String): ParsedTaskItem? {
+    val match = TASK_ITEM.matchEntire(content) ?: return null
+    return ParsedTaskItem(
+        checked = match.groupValues[1].equals("x", ignoreCase = true),
+        content = match.groupValues[2],
+    )
+}
 
 /** markdown 文本 -> 块模型。按行解析，连续竖线行聚合为表格，未识别语法容错为段落。 */
 object MarkdownParser {
@@ -56,10 +67,12 @@ object MarkdownParser {
         DIVIDER.matchEntire(line.trim())?.let { return Block.Divider }
         LIST_ITEM.matchEntire(line)?.let {
             val (indent, marker, content) = it.destructured
+            val task = parseTaskItem(content)
             return Block.ListItem(
                 ordered = marker != "-",
                 indent = indent.length / 2,
-                content = inline(content),
+                content = inline(task?.content ?: content),
+                checked = task?.checked,
             )
         }
         QUOTE.matchEntire(line)?.let { return Block.Quote(inline(it.groupValues[1])) }

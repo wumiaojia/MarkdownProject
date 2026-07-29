@@ -17,6 +17,8 @@ sealed interface Block {
         val ordered: Boolean,
         val indent: Int = 0,
         val content: RichText = RichText(),
+        /** null = 普通列表项，false/true = 未完成/已完成任务 */
+        val checked: Boolean? = null,
     ) : Block
     data class Quote(val content: RichText = RichText()) : Block
     data object Divider : Block

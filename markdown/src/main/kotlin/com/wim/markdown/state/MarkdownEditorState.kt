@@ -23,12 +23,15 @@ import com.wim.markdown.serializer.HtmlSerializer
 import com.wim.markdown.serializer.InlineMarkdown
 import com.wim.markdown.serializer.MarkdownParser
 import com.wim.markdown.serializer.MarkdownSerializer
+import com.wim.markdown.serializer.ParsedTaskItem
+import com.wim.markdown.serializer.parseTaskItem
 
 /** 工具栏可切换的块类型 */
 sealed interface BlockType {
     data object Paragraph : BlockType
     data class Heading(val level: Int) : BlockType
     data class ListItem(val ordered: Boolean) : BlockType
+    data object TaskListItem : BlockType
     data object Quote : BlockType
 }
 
@@ -38,6 +41,11 @@ private val INLINE_ORDERED = Regex("^\\d+\\. ")
 private val INLINE_QUOTE = Regex("^> ")
 private val INLINE_DIVIDER = Regex("^-{3,}$")
 private const val MAX_INDENT = 3
+
+private fun Block.parsePendingTask(source: String): ParsedTaskItem? =
+    (this as? Block.ListItem)
+        ?.takeIf { it.checked == null }
+        ?.let { parseTaskItem(source) }
 
 /** 编辑器唯一状态入口。所有编辑操作都经过这里，UI 层无业务逻辑。 */
 @Stable
@@ -117,8 +125,24 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
     /** INLINE 模式：把焦点块源码解析写回模型 */
     private fun commitInlineEdit(keepFocus: Boolean = false) {
         val src = inlineSource ?: return
-        if (focusedIndex in blocks.indices && blocks[focusedIndex].contentOrNull() != null) {
-            blocks[focusedIndex] = blocks[focusedIndex].withContent(InlineMarkdown.parse(src).plain)
+        val current = blocks.getOrNull(focusedIndex)
+        if (current?.contentOrNull() != null) {
+            val task = current.parsePendingTask(src)
+            val contentSource = task?.content ?: src
+            val content = InlineMarkdown.parse(contentSource).plain
+            blocks[focusedIndex] = if (task == null) {
+                current.withContent(content)
+            } else {
+                (current as Block.ListItem).copy(content = content, checked = task.checked)
+            }
+            if (keepFocus && task != null) {
+                inlineSource = contentSource
+                val removedLength = src.length - contentSource.length
+                selection = TextRange(
+                    (selection.start - removedLength).coerceIn(0, contentSource.length),
+                    (selection.end - removedLength).coerceIn(0, contentSource.length),
+                )
+            }
         }
         if (!keepFocus) inlineSource = null
     }
@@ -166,7 +190,15 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
             return
         }
         // 段落行首输入块前缀 -> 实时转换块类型
-        if (blocks.getOrNull(focusedIndex) is Block.Paragraph && convertByPrefix(value)) return
+        val current = blocks.getOrNull(focusedIndex)
+        if (current is Block.Paragraph && convertByPrefix(value)) return
+        if (
+            current is Block.ListItem &&
+            current.checked == null &&
+            convertTaskPrefix(current, value)
+        ) {
+            return
+        }
         inlineSource = value.text
         selection = value.selection
     }
@@ -189,15 +221,37 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
             else -> return false
         }
         val rest = text.substring(prefixLen)
+        if (block is Block.ListItem && convertTaskPrefix(block, value, prefixLen)) return true
         blocks[focusedIndex] = block.withContent(InlineMarkdown.parse(rest).plain)
         inlineSource = rest
         selection = TextRange((value.selection.min - prefixLen).coerceIn(0, rest.length))
         return true
     }
 
+    /** 普通列表项继续输入 [ ]/[x] 时，转换为任务列表并移除源码中的任务标记。 */
+    private fun convertTaskPrefix(
+        current: Block.ListItem,
+        value: TextFieldValue,
+        listPrefixLength: Int = 0,
+    ): Boolean {
+        val source = value.text.substring(listPrefixLength)
+        val task = parseTaskItem(source) ?: return false
+        // 输入完 "[ ]" 后继续等待分隔空格，避免下一次输入产生多余的正文空格。
+        if (source.length == 3) return false
+        val rest = task.content
+        val removedLength = value.text.length - rest.length
+        blocks[focusedIndex] = current.copy(
+            content = InlineMarkdown.parse(rest).plain,
+            checked = task.checked,
+        )
+        inlineSource = rest
+        selection = TextRange((value.selection.min - removedLength).coerceIn(0, rest.length))
+        return true
+    }
+
     private fun handleInlineEnter(left: String, right: String) {
         val index = focusedIndex
-        val current = blocks[index]
+        var current = blocks[index]
         // "---" 回车 -> 分割线
         if (current is Block.Paragraph && INLINE_DIVIDER.matches(left.trim())) {
             blocks[index] = Block.Divider
@@ -207,7 +261,11 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
             selection = TextRange.Zero
             return
         }
-        val leftRich = InlineMarkdown.parse(left).plain
+        val task = current.parsePendingTask(left)
+        if (task != null) {
+            current = (current as Block.ListItem).copy(checked = task.checked)
+        }
+        val leftRich = InlineMarkdown.parse(task?.content ?: left).plain
         val rightRich = InlineMarkdown.parse(right).plain
         // 空列表项回车 -> 退出列表
         if (current is Block.ListItem && leftRich.text.isEmpty() && rightRich.text.isEmpty()) {
@@ -242,7 +300,10 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
     }
 
     private fun continuationBlock(current: Block, content: RichText): Block = when (current) {
-        is Block.ListItem -> current.copy(content = content)
+        is Block.ListItem -> current.copy(
+            content = content,
+            checked = if (current.checked == null) null else false,
+        )
         is Block.Quote -> Block.Quote(content)
         else -> Block.Paragraph(content)
     }
@@ -349,13 +410,20 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
         val current = blocks.getOrNull(index) ?: return
         val content = inlineSource?.let { InlineMarkdown.parse(it).plain }
             ?: current.contentOrNull() ?: return
+        val currentListItem = current as? Block.ListItem
         blocks[index] = when (type) {
             BlockType.Paragraph -> Block.Paragraph(content)
             is BlockType.Heading -> Block.Heading(type.level, content)
             is BlockType.ListItem -> Block.ListItem(
                 ordered = type.ordered,
-                indent = (current as? Block.ListItem)?.indent ?: 0,
+                indent = currentListItem?.indent ?: 0,
                 content = content,
+            )
+            BlockType.TaskListItem -> Block.ListItem(
+                ordered = false,
+                indent = currentListItem?.indent ?: 0,
+                content = content,
+                checked = currentListItem?.checked ?: false,
             )
             BlockType.Quote -> Block.Quote(content)
         }
@@ -364,6 +432,13 @@ class MarkdownEditorState(initialBlocks: List<Block> = listOf(Block.Paragraph())
     fun changeIndent(delta: Int) {
         val current = blocks.getOrNull(focusedIndex) as? Block.ListItem ?: return
         blocks[focusedIndex] = current.copy(indent = (current.indent + delta).coerceIn(0, MAX_INDENT))
+    }
+
+    /** 更新指定任务列表项的完成状态；普通列表项不会被修改。 */
+    fun setTaskChecked(index: Int, checked: Boolean) {
+        val current = blocks.getOrNull(index) as? Block.ListItem ?: return
+        if (current.checked == null || current.checked == checked) return
+        blocks[index] = current.copy(checked = checked)
     }
 
     fun insertDivider() {

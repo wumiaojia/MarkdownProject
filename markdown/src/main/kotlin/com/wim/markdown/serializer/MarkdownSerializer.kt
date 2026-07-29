@@ -39,7 +39,9 @@ object MarkdownSerializer {
                     is Block.ListItem -> {
                         val prefix =
                             if (block.ordered) "${orderedNumber(blocks, i)}. " else "- "
-                        "  ".repeat(block.indent) + prefix + InlineMarkdown.serialize(block.content)
+                        val taskMarker = block.checked?.let { if (it) "[x] " else "[ ] " }.orEmpty()
+                        "  ".repeat(block.indent) + prefix + taskMarker +
+                            InlineMarkdown.serialize(block.content)
                     }
                     is Block.Table -> serializeTable(block)
                 },

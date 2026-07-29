@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wim.markdown.MarkdownEditorMode
@@ -42,6 +44,8 @@ import com.wim.markdown.model.Block
 import com.wim.markdown.model.contentOrNull
 import com.wim.markdown.serializer.orderedNumber
 import com.wim.markdown.state.MarkdownEditorState
+
+private val TaskContentTopPadding = 12.dp
 
 @Composable
 internal fun BlockEditor(
@@ -74,14 +78,20 @@ internal fun BlockEditor(
     }
 
     val textStyle = blockTextStyle(block)
+    val contentTopPadding =
+        if (block is Block.ListItem && block.checked != null) TaskContentTopPadding else 0.dp
     Row(
         modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .padding(top = topPadding),
     ) {
-        BlockPrefix(index, block, state)
-        Box(Modifier.weight(1f)) {
+        BlockPrefix(index, block, state, readOnly)
+        Box(
+            Modifier
+                .weight(1f)
+                .padding(top = contentTopPadding),
+        ) {
             if (!readOnly && index == state.focusedIndex) {
                 FocusedField(block, state, mode, textStyle)
             } else {
@@ -100,23 +110,57 @@ private fun blockTextStyle(block: Block): TextStyle {
             fontSize = typography.headingSizes.getOrElse((block.level - 1)) { 15.sp },
             fontWeight = FontWeight.Bold,
         )
-        is Block.ListItem -> base.copy(fontSize = typography.listItemSize)
+        is Block.ListItem -> base.copy(
+            fontSize = typography.listItemSize,
+            textDecoration = if (block.checked == true) {
+                TextDecoration.LineThrough
+            } else {
+                TextDecoration.None
+            },
+        )
         is Block.Quote -> base.copy(fontSize = typography.quoteSize)
         else -> base.copy(fontSize = typography.paragraphSize)
     }
 }
 
 @Composable
-private fun BlockPrefix(index: Int, block: Block, state: MarkdownEditorState) {
+private fun BlockPrefix(
+    index: Int,
+    block: Block,
+    state: MarkdownEditorState,
+    readOnly: Boolean,
+) {
     when (block) {
         is Block.ListItem -> {
-            val label =
-                if (block.ordered) "${orderedNumber(state.blocks, index)}." else "•"
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.padding(start = (16 * block.indent).dp, end = 8.dp),
-            )
+            val indent = (16 * block.indent).dp
+            val label = when {
+                block.ordered -> "${orderedNumber(state.blocks, index)}."
+                block.checked == null -> "•"
+                else -> null
+            }
+            label?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyLarge,
+                    modifier = Modifier.padding(
+                        start = indent,
+                        top = if (block.checked == null) 0.dp else TaskContentTopPadding,
+                        end = if (block.checked == null) 8.dp else 4.dp,
+                    ),
+                )
+            }
+            block.checked?.let { checked ->
+                Checkbox(
+                    checked = checked,
+                    onCheckedChange = { state.setTaskChecked(index, it) },
+                    enabled = !readOnly,
+                    modifier = Modifier
+                        .padding(
+                            start = if (label == null) indent else 0.dp,
+                            end = 8.dp,
+                        ),
+                )
+            }
         }
         is Block.Quote -> Box(
             Modifier

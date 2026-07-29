@@ -13,6 +13,7 @@ enum class ToolbarItem {
     Heading,
     BulletList,
     NumberedList,
+    TaskList,
     IndentDecrease,
     IndentIncrease,
     Quote,
